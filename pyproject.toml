@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trading-report"
+version = "1.0.0"
+description = "The daily trading report renderer shared by equity-service and crypto-service"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.setuptools]
+packages = ["trading_report"]
+
+[tool.setuptools.package-data]
+trading_report = ["theme.css"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ARG", "C4", "PTH"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+testpaths = ["tests"]
