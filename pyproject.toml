@@ -13,7 +13,11 @@ dependencies = []
 packages = ["trading_report"]
 
 [tool.setuptools.package-data]
-trading_report = ["theme.css"]
+trading_report = ["theme.css", "py.typed"]
+# `py.typed` is not decoration: without it mypy refuses to read this package's
+# annotations in either service and reports `import-untyped` at every call
+# site, which is the whole benefit of a strict-typed library thrown away at
+# the boundary.
 
 [tool.ruff]
 line-length = 100
