@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trading-report"
-version = "1.0.0"
+version = "1.0.2"
 description = "The daily trading report renderer shared by equity-service and crypto-service"
 requires-python = ">=3.12"
 dependencies = []

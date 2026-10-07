@@ -368,8 +368,21 @@ def _table(table: Table) -> str:
         # ordinary morning is every table empty, and the caption is where the
         # funnel (scanned, stop derived, near-passes) is stated.
         return f'{caption}<p class="empty">{escape(table.empty_note)}</p>'
+    # **A header is aligned like the column it names.** This was `i < 2` — the
+    # first two headers left, every other one right — which held only because
+    # the tables written first put their text columns first. Any table with a
+    # left-aligned cell further along got a right-aligned header floating over
+    # it: the regime table's "ours" and "attempt" sat a column-width away from
+    # their own values, and `sector` in the setups table has the same fault.
+    #
+    # Taken from the first row, which is the only place the intent is recorded.
+    # With no rows there is nothing to align to and nothing to misalign, so the
+    # old shape is kept for that case alone.
+    first = table.rows[0] if table.rows else []
     head = "".join(
-        f'<th class="l">{escape(h)}</th>' if i < 2 else f"<th>{escape(h)}</th>"
+        f'<th class="l">{escape(h)}</th>'
+        if (first[i].left if i < len(first) else i < 2)
+        else f"<th>{escape(h)}</th>"
         for i, h in enumerate(table.headers)
     )
     body = "".join("<tr>" + "".join(_cell(c) for c in row) + "</tr>" for row in table.rows)
