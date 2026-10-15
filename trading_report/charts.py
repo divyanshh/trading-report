@@ -42,6 +42,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from html import escape
 from typing import Final
 
 WIDTH: Final[int] = 720
@@ -510,5 +511,112 @@ def render_mini(
             f'<text x="{plot_w + 3}" y="{ly + 3:.1f}" font-size="{LABEL}" font-weight="700" '
             f'fill="{TARGET_COLOUR}">{label}</text>'
         )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+BREADTH_WIDTH: Final[int] = 640
+BREADTH_HEIGHT: Final[int] = 150
+BREADTH_COLOUR: Final[str] = "var(--cyan,#0891b2)"
+BREADTH_MEAN_COLOUR: Final[str] = "var(--faint,#94a3b8)"
+BREADTH_HALF_COLOUR: Final[str] = "var(--faint,#94a3b8)"
+
+
+def render_breadth(
+    points: Sequence[tuple[str, Decimal]],
+    means: Sequence[Decimal | None] = (),
+    *,
+    width: int = BREADTH_WIDTH,
+    height: int = BREADTH_HEIGHT,
+) -> str:
+    """Participation over time: the share of a universe above its own 20MA.
+
+    **A different question from any other chart here**, which all draw one
+    instrument's price. This draws how many names are taking part, which is the
+    number that says whether an index move is the market or a handful of
+    heavyweights. On 2026-10-15 the Nifty printed a follow-through day and
+    fewer than three stocks in ten were above their own 20MA.
+
+    Two series, because the reading is a comparison and not a level: the share
+    itself, and the mean of the prior five sessions it is judged against. The
+    gate opens when the first is above the second, so a chart showing only the
+    first would leave the reader doing the comparison by eye against a number
+    printed elsewhere.
+
+    The 50% line is drawn as a fixed reference. Half the market above its own
+    average is the neutral point and the eye needs somewhere to stand; without
+    it a band between 25% and 45% looks like whatever the axis makes it look
+    like.
+
+    ``points`` is oldest first, each a (label, percent) pair. ``means`` is
+    aligned to it and may be shorter or carry ``None`` where no mean was
+    recorded -- a gap is left open rather than bridged, because a line drawn
+    through a day nobody measured is a claim about that day.
+    """
+    if len(points) < 2:
+        return ""
+
+    pad_l, pad_r, pad_t, pad_b = 34, 8, 10, 20
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+    n = len(points)
+
+    values = [float(v) for _, v in points]
+    floor = min(0.0, min(values))
+    roof = max(100.0, max(values))
+    floor, roof = max(0.0, floor), min(100.0, roof)
+    if roof <= floor:
+        roof = floor + 1
+
+    def x(i: int) -> float:
+        return pad_l + (plot_w * i / max(n - 1, 1))
+
+    def y(v: float) -> float:
+        return pad_t + plot_h * (1 - (v - floor) / (roof - floor))
+
+    parts = [
+        f'<svg viewBox="0 0 {width} {height}" class="breadth" role="img" '
+        f'aria-label="share of the universe above its own 20-day average">'
+    ]
+
+    for level in (50.0,):
+        parts.append(
+            f'<line x1="{pad_l}" y1="{y(level):.1f}" x2="{width - pad_r}" y2="{y(level):.1f}" '
+            f'stroke="{BREADTH_HALF_COLOUR}" stroke-width="0.8" stroke-dasharray="3 3" '
+            f'opacity="0.55"/>'
+            f'<text x="{pad_l - 6}" y="{y(level) + 3:.1f}" text-anchor="end" font-size="9" '
+            f'fill="{BREADTH_HALF_COLOUR}">50%</text>'
+        )
+
+    if means:
+        mean_pts = [
+            f"{x(i):.1f},{y(float(m)):.1f}" for i, m in enumerate(means[:n]) if m is not None
+        ]
+        if len(mean_pts) > 1:
+            parts.append(
+                f'<polyline points="{" ".join(mean_pts)}" fill="none" '
+                f'stroke="{BREADTH_MEAN_COLOUR}" stroke-width="1" stroke-dasharray="4 3" '
+                f'opacity="0.9"/>'
+            )
+
+    line = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(values)]
+    parts.append(
+        f'<polyline points="{" ".join(line)}" fill="none" stroke="{BREADTH_COLOUR}" '
+        f'stroke-width="1.8"/>'
+    )
+    last_x, last_y = x(n - 1), y(values[-1])
+    parts.append(
+        f'<circle cx="{last_x:.1f}" cy="{last_y:.1f}" r="2.6" fill="{BREADTH_COLOUR}"/>'
+        f'<text x="{last_x - 4:.1f}" y="{last_y - 7:.1f}" text-anchor="end" font-size="10" '
+        f'fill="{BREADTH_COLOUR}">{values[-1]:.1f}%</text>'
+    )
+
+    first_label, last_label = points[0][0], points[-1][0]
+    parts.append(
+        f'<text x="{pad_l}" y="{height - 5}" font-size="9" '
+        f'fill="{BREADTH_MEAN_COLOUR}">{escape(first_label)}</text>'
+        f'<text x="{width - pad_r}" y="{height - 5}" text-anchor="end" font-size="9" '
+        f'fill="{BREADTH_MEAN_COLOUR}">{escape(last_label)}</text>'
+    )
     parts.append("</svg>")
     return "".join(parts)

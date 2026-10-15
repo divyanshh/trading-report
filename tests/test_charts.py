@@ -380,3 +380,59 @@ class TestTheLevelsOnAnOpenTrade:
         assert re.search(r"#[0-9a-f]{6}(?![^\"]*var\()", svg) is None or "var(--" in svg
         for token in ("var(--green", "var(--red", "var(--faint", "var(--blue"):
             assert token in svg, token
+
+
+class TestTheBreadthChart:
+    """Participation over time, which no other chart here answers.
+
+    Every other renderer draws one instrument's price. This draws how many
+    names are taking part -- the number that separates an index move from a
+    market move. On 2026-10-15 the Nifty printed a follow-through day with
+    fewer than three stocks in ten above their own 20-day average.
+    """
+
+    @staticmethod
+    def _points(n: int = 20) -> list[tuple[str, Decimal]]:
+        return [(f"d{i}", Decimal(str(25 + (i * 3) % 40))) for i in range(n)]
+
+    def test_it_draws_the_share_and_the_mean_it_is_judged_against(self) -> None:
+        """Two series, because the reading is a comparison and not a level:
+        the gate opens when today is above the prior five-session mean."""
+        pts = self._points()
+        means = [Decimal("33")] * len(pts)
+
+        svg = charts.render_breadth(pts, means)
+
+        assert svg.count("<polyline") == 2
+        assert charts.BREADTH_COLOUR in svg
+        assert charts.BREADTH_MEAN_COLOUR in svg
+
+    def test_the_half_line_is_drawn_as_a_reference(self) -> None:
+        """Half the market above its own average is the neutral point, and the
+        eye needs somewhere to stand."""
+        assert "50%" in charts.render_breadth(self._points())
+
+    def test_a_day_with_no_mean_leaves_a_gap(self) -> None:
+        """A line through a day nobody measured is a claim about that day."""
+        pts = self._points(6)
+        means = [Decimal("33"), None, Decimal("34"), None, Decimal("35"), Decimal("36")]
+
+        svg = charts.render_breadth(pts, means)
+
+        assert svg.count("<polyline") == 2, "the mean still draws from what it has"
+
+    def test_it_needs_two_points_to_say_anything(self) -> None:
+        assert charts.render_breadth(self._points(1)) == ""
+        assert charts.render_breadth([]) == ""
+
+    def test_the_latest_reading_is_labelled(self) -> None:
+        """The chart is read for today's number as often as for its shape."""
+        pts = [("a", Decimal("20")), ("b", Decimal("41.7"))]
+
+        assert "41.7%" in charts.render_breadth(pts)
+
+    def test_it_works_without_any_means(self) -> None:
+        """The prior-five mean is only recorded once there are five priors."""
+        svg = charts.render_breadth(self._points())
+
+        assert svg.count("<polyline") == 1
