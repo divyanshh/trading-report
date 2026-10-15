@@ -202,6 +202,31 @@ class TestTheRowSizedChart:
     def test_an_empty_series_draws_nothing(self) -> None:
         assert charts.render_mini([]) == ""
 
+    def test_it_draws_both_the_ten_and_the_twenty(self) -> None:
+        """Both, because both are gates: G1 measures extension from the 10-day
+        and G2 from the 20-day. A row showing one of them hides half the entry
+        test, and on 2026-10-15 that made a correct verdict look wrong -- a
+        name above its 50-day and under its 20-day read as a contradiction
+        because the single amber line was taken for "the moving average"."""
+        svg = charts.render_mini(series([str(100 + i % 9) for i in range(40)]))
+
+        assert charts.MA_COLOURS[10] in svg, "the 10-day is missing"
+        assert charts.MA_COLOURS[20] in svg, "the 20-day is missing"
+
+    def test_it_leaves_the_fifty_to_the_gate(self) -> None:
+        """The trend filter is answered by a verdict in the same row. A third
+        line on a chart this small is clutter; the full render still has it."""
+        svg = charts.render_mini(series([str(100 + i % 9) for i in range(60)]))
+
+        assert charts.MA_COLOURS[50] not in svg
+
+    def test_the_slower_average_is_drawn_first(self) -> None:
+        """So the faster one is on top where they cross, which is the crossing
+        a reader is looking for."""
+        svg = charts.render_mini(series([str(100 + i % 9) for i in range(40)]))
+
+        assert svg.index(charts.MA_COLOURS[20]) < svg.index(charts.MA_COLOURS[10])
+
 
 class TestTheRowChartNamesItsLevels:
     """It was 210x54 for one afternoon and could not be read. An unlabelled

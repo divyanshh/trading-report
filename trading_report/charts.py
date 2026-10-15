@@ -330,6 +330,15 @@ not be read: at five pixels a candle the wicks are a smudge and there is no
 room to say which line is the stop. At 340x124 a candle is eight pixels, the
 three levels carry their own labels, and the row is still a row."""
 
+MINI_MA_PERIODS: Final[tuple[int, ...]] = (10, 20)
+"""Averages drawn on the row chart.
+
+The two the entry gates measure against. The 50-day is deliberately absent: it
+is a trend filter answered by a gate verdict in the same row, and a third line
+on a chart this small is clutter rather than information. The full `render`
+still draws all three.
+"""
+
 LABEL: Final[int] = 8
 """Type size for the labels inside the plot. Small, because the row prints
 every one of these numbers in full a few columns to the right — the label says
@@ -365,7 +374,16 @@ def _band_start(window: Sequence[Bar], low: Decimal, high: Decimal) -> int:
 def render_mini(
     bars: Sequence[Bar], marks: Marks | None = None, *, sessions: int = MINI_SESSIONS
 ) -> str:
-    """The row's chart: candles, the 20-day average, and the three levels named.
+    """The row's chart: candles, the 10- and 20-day averages, and the levels named.
+
+    **Both averages, because both are gates.** G1 measures extension from the
+    10-day and G2 from the 20-day, so a row that shows one of them is a row
+    where half the entry test is invisible. Drawing only the 20 also made a
+    correct result look wrong: on 2026-10-15 ACMESOLAR passed the 50-day trend
+    gate at +2.8% while sitting 3.2% under its 20-day, and the single amber
+    line was read as "the moving average" and therefore as a contradiction.
+    Two lines in their catalogued colours -- 10 blue, 20 amber -- say which is
+    which without a legend.
 
     A full chart is 7 KB and half a screen; a hundred of them is a page nobody
     scrolls. This is the version that belongs beside the numbers it describes
@@ -380,7 +398,9 @@ def render_mini(
     window = list(bars[-sessions:])
     n = len(window)
 
-    averages = _sma([bar.close for bar in bars], 20)[-n:]
+    averages = {
+        period: _sma([bar.close for bar in bars], period)[-n:] for period in MINI_MA_PERIODS
+    }
 
     floor = min(float(bar.low) for bar in window)
     roof = max(float(bar.high) for bar in window)
@@ -441,12 +461,15 @@ def render_mini(
                 f'stroke-width="0.9"/>'
             )
 
-    points = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(averages) if v is not None]
-    if len(points) > 1:
-        parts.append(
-            f'<polyline points="{" ".join(points)}" fill="none" '
-            f'stroke="{MA_COLOURS[20]}" stroke-width="1.1" opacity="0.85"/>'
-        )
+    # Slowest first, so the faster average draws over it where they cross.
+    for period in sorted(MINI_MA_PERIODS, reverse=True):
+        series = averages[period]
+        points = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(series) if v is not None]
+        if len(points) > 1:
+            parts.append(
+                f'<polyline points="{" ".join(points)}" fill="none" '
+                f'stroke="{MA_COLOURS[period]}" stroke-width="1.1" opacity="0.85"/>'
+            )
 
     # Faintest first, so a trailed stop sitting near its origin draws over it.
     levels = [
