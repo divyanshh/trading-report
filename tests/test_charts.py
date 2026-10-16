@@ -403,8 +403,10 @@ class TestTheBreadthChart:
 
         svg = charts.render_breadth(pts, means)
 
-        assert svg.count("<polyline") == 2
-        assert charts.BREADTH_COLOUR in svg
+        # above, below, and the mean.
+        assert svg.count("<polyline") == 3
+        assert charts.BREADTH_ABOVE_COLOUR in svg
+        assert charts.BREADTH_BELOW_COLOUR in svg
         assert charts.BREADTH_MEAN_COLOUR in svg
 
     def test_the_half_line_is_drawn_as_a_reference(self) -> None:
@@ -419,7 +421,7 @@ class TestTheBreadthChart:
 
         svg = charts.render_breadth(pts, means)
 
-        assert svg.count("<polyline") == 2, "the mean still draws from what it has"
+        assert svg.count("<polyline") == 3, "the mean still draws from what it has"
 
     def test_it_needs_two_points_to_say_anything(self) -> None:
         assert charts.render_breadth(self._points(1)) == ""
@@ -435,4 +437,45 @@ class TestTheBreadthChart:
         """The prior-five mean is only recorded once there are five priors."""
         svg = charts.render_breadth(self._points())
 
-        assert svg.count("<polyline") == 1
+        # above and below; no mean line to draw yet.
+        assert svg.count("<polyline") == 2
+        assert charts.BREADTH_MEAN_COLOUR not in svg
+
+
+class TestTheBreadthChartsTwoSides:
+    """Blue above its 20MA, red below, and they must actually mirror.
+
+    The red line carries no information the blue one does not. It earns its
+    place by turning "is 28.59% more or less than half" into a crossing the eye
+    reads without arithmetic — which only works if it is genuinely 100 minus
+    the blue line and not an independently computed series that could drift.
+    """
+
+    @staticmethod
+    def _points(n: int = 8) -> list[tuple[str, Decimal]]:
+        return [(f"d{i}", Decimal("30") + Decimal(i)) for i in range(n)]
+
+    def test_the_two_lines_mirror_around_fifty(self) -> None:
+        svg = charts.render_breadth([("a", Decimal("20")), ("b", Decimal("37.0"))])
+
+        assert "37.0%" in svg
+        assert "63.0%" in svg, "the red line is 100 minus the blue one"
+
+    def test_the_mean_is_the_gate_and_says_so(self) -> None:
+        """It was previously drawn in the same grey as the axis labels — the one
+        line that decides whether we may trade, as the faintest thing there."""
+        svg = charts.render_breadth(self._points(), [Decimal("33")] * 8)
+
+        assert "prior 5-session mean (the gate)" in svg
+        assert charts.BREADTH_MEAN_COLOUR == "#15803d"
+
+    def test_it_is_drawn_large_enough_to_separate_the_lines(self) -> None:
+        svg = charts.render_breadth(self._points())
+
+        assert 'viewBox="0 0 980 300"' in svg
+
+    def test_the_legend_names_all_three(self) -> None:
+        svg = charts.render_breadth(self._points(), [Decimal("33")] * 8)
+
+        for label in ("above 20MA", "below 20MA", "prior 5-session mean (the gate)"):
+            assert label in svg

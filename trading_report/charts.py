@@ -515,11 +515,41 @@ def render_mini(
     return "".join(parts)
 
 
-BREADTH_WIDTH: Final[int] = 640
-BREADTH_HEIGHT: Final[int] = 150
-BREADTH_COLOUR: Final[str] = "var(--cyan,#0891b2)"
-BREADTH_MEAN_COLOUR: Final[str] = "var(--faint,#94a3b8)"
+BREADTH_WIDTH: Final[int] = 980
+BREADTH_HEIGHT: Final[int] = 300
+"""Deliberately larger than the row charts.
+
+This is the only chart on the page that answers "is the market taking part",
+and it sits at the top where the gate's verdict is read. At the old 640x150 the
+three lines crowded into a band a few pixels deep and the crossing -- the whole
+point -- was a judgement call. The page is a desktop report; the width is
+affordable.
+"""
+
+BREADTH_ABOVE_COLOUR: Final[str] = "#2563eb"
+"""Blue: the share of the universe above its own 20-day average."""
+
+BREADTH_BELOW_COLOUR: Final[str] = "#dc2626"
+"""Red: the share below it.
+
+**It is the mirror of the blue line and that is the point.** It carries no
+information blue does not, but the two together put the majority on the page as
+a crossing rather than as a number the reader has to compare with 50 in their
+head. Where red is above blue, most of the market is below its own average.
+"""
+
+BREADTH_MEAN_COLOUR: Final[str] = "#15803d"
+"""Dark green: the prior five-session mean the gate judges today against.
+
+Darkened from the old grey on purpose. This is not chrome -- it is the
+threshold the entry gate actually compares to, and it was previously drawn in
+the same faint grey as the axis labels, which made the one line that decides
+whether we may trade the least visible thing on the chart.
+"""
+
 BREADTH_HALF_COLOUR: Final[str] = "var(--faint,#94a3b8)"
+BREADTH_COLOUR: Final[str] = BREADTH_ABOVE_COLOUR
+"""Retained name. Older callers and tests refer to it."""
 
 
 def render_breadth(
@@ -556,7 +586,7 @@ def render_breadth(
     if len(points) < 2:
         return ""
 
-    pad_l, pad_r, pad_t, pad_b = 34, 8, 10, 20
+    pad_l, pad_r, pad_t, pad_b = 46, 14, 28, 30
     plot_w = width - pad_l - pad_r
     plot_h = height - pad_t - pad_b
     n = len(points)
@@ -576,8 +606,20 @@ def render_breadth(
 
     parts = [
         f'<svg viewBox="0 0 {width} {height}" class="breadth" role="img" '
-        f'aria-label="share of the universe above its own 20-day average">'
+        f'aria-label="share of the universe above and below its own 20-day average, '
+        f'with the prior five-session mean">'
     ]
+
+    # Gridlines every 25%. At this size the eye needs more than the midpoint to
+    # read a level off, and a quarter is the coarsest spacing that still lets
+    # 28.59% be told from 32.23% -- which is the comparison the gate turns on.
+    for level in (25.0, 75.0):
+        parts.append(
+            f'<line x1="{pad_l}" y1="{y(level):.1f}" x2="{width - pad_r}" y2="{y(level):.1f}" '
+            f'stroke="{BREADTH_HALF_COLOUR}" stroke-width="0.6" opacity="0.25"/>'
+            f'<text x="{pad_l - 6}" y="{y(level) + 3:.1f}" text-anchor="end" font-size="10" '
+            f'fill="{BREADTH_HALF_COLOUR}">{level:.0f}%</text>'
+        )
 
     for level in (50.0,):
         parts.append(
@@ -588,6 +630,7 @@ def render_breadth(
             f'fill="{BREADTH_HALF_COLOUR}">50%</text>'
         )
 
+    drew_mean = False
     if means:
         mean_pts = [
             f"{x(i):.1f},{y(float(m)):.1f}" for i, m in enumerate(means[:n]) if m is not None
@@ -595,28 +638,65 @@ def render_breadth(
         if len(mean_pts) > 1:
             parts.append(
                 f'<polyline points="{" ".join(mean_pts)}" fill="none" '
-                f'stroke="{BREADTH_MEAN_COLOUR}" stroke-width="1" stroke-dasharray="4 3" '
-                f'opacity="0.9"/>'
+                f'stroke="{BREADTH_MEAN_COLOUR}" stroke-width="2" stroke-dasharray="6 4"/>'
             )
+            drew_mean = True
+
+    # Red first, so blue draws over it where they meet and the share actually
+    # above the average stays the readable one.
+    below = [f"{x(i):.1f},{y(100.0 - v):.1f}" for i, v in enumerate(values)]
+    parts.append(
+        f'<polyline points="{" ".join(below)}" fill="none" '
+        f'stroke="{BREADTH_BELOW_COLOUR}" stroke-width="2" opacity="0.85"/>'
+    )
 
     line = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(values)]
     parts.append(
-        f'<polyline points="{" ".join(line)}" fill="none" stroke="{BREADTH_COLOUR}" '
-        f'stroke-width="1.8"/>'
+        f'<polyline points="{" ".join(line)}" fill="none" '
+        f'stroke="{BREADTH_ABOVE_COLOUR}" stroke-width="2.6"/>'
     )
-    last_x, last_y = x(n - 1), y(values[-1])
-    parts.append(
-        f'<circle cx="{last_x:.1f}" cy="{last_y:.1f}" r="2.6" fill="{BREADTH_COLOUR}"/>'
-        f'<text x="{last_x - 4:.1f}" y="{last_y - 7:.1f}" text-anchor="end" font-size="10" '
-        f'fill="{BREADTH_COLOUR}">{values[-1]:.1f}%</text>'
-    )
+
+    last_x = x(n - 1)
+    for value, colour in (
+        (values[-1], BREADTH_ABOVE_COLOUR),
+        (100.0 - values[-1], BREADTH_BELOW_COLOUR),
+    ):
+        parts.append(
+            f'<circle cx="{last_x:.1f}" cy="{y(value):.1f}" r="3.4" fill="{colour}"/>'
+            f'<text x="{last_x - 6:.1f}" y="{y(value) - 9:.1f}" text-anchor="end" '
+            f'font-size="12" font-weight="600" fill="{colour}">{value:.1f}%</text>'
+        )
+
+    # Legend. Three lines on one axis is past the point where colour alone
+    # carries it, and the mean is a different kind of thing from the other two
+    # -- a threshold rather than a measurement -- which the words have to say.
+    # The mean entry appears only when a mean line was actually drawn. A legend
+    # that names a series the chart does not carry tells the reader the gate is
+    # on the page when it is not -- and the early sessions of any new universe
+    # have no prior five to average.
+    legend = [
+        ("above 20MA", BREADTH_ABOVE_COLOUR, False),
+        ("below 20MA", BREADTH_BELOW_COLOUR, False),
+    ]
+    if drew_mean:
+        legend.append(("prior 5-session mean (the gate)", BREADTH_MEAN_COLOUR, True))
+    cursor = float(pad_l)
+    for label, colour, dashed in legend:
+        dash = ' stroke-dasharray="6 4"' if dashed else ""
+        parts.append(
+            f'<line x1="{cursor:.1f}" y1="14" x2="{cursor + 18:.1f}" y2="14" '
+            f'stroke="{colour}" stroke-width="2.6"{dash}/>'
+            f'<text x="{cursor + 23:.1f}" y="17.5" font-size="11" fill="{colour}">'
+            f"{escape(label)}</text>"
+        )
+        cursor += 34 + len(label) * 6.1
 
     first_label, last_label = points[0][0], points[-1][0]
     parts.append(
-        f'<text x="{pad_l}" y="{height - 5}" font-size="9" '
-        f'fill="{BREADTH_MEAN_COLOUR}">{escape(first_label)}</text>'
-        f'<text x="{width - pad_r}" y="{height - 5}" text-anchor="end" font-size="9" '
-        f'fill="{BREADTH_MEAN_COLOUR}">{escape(last_label)}</text>'
+        f'<text x="{pad_l}" y="{height - 8}" font-size="10" '
+        f'fill="{BREADTH_HALF_COLOUR}">{escape(first_label)}</text>'
+        f'<text x="{width - pad_r}" y="{height - 8}" text-anchor="end" font-size="10" '
+        f'fill="{BREADTH_HALF_COLOUR}">{escape(last_label)}</text>'
     )
     parts.append("</svg>")
     return "".join(parts)
