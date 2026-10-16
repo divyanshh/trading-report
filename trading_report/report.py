@@ -216,6 +216,14 @@ class Figure:
     svg: str
     caption: str = ""
     tone: str = ""
+    wide: bool = False
+    """Span the whole figure grid rather than one cell.
+
+    For the chart a section is actually about, where the grid would otherwise
+    drop it into a quarter-width column beside three empty ones. A wide figure
+    must be drawn from a correspondingly wide viewBox or its labels render at
+    several times the size of everything around them.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,6 +423,7 @@ def _section(section: Section) -> str:
 
 def _figure(figure: Figure) -> str:
     tone = f" {figure.tone}" if figure.tone else ""
+    tone += " fig--wide" if figure.wide else ""
     caption = f"<figcaption>{escape(figure.caption)}</figcaption>" if figure.caption else ""
     return (
         f'<figure class="fig{tone}"><h3>{escape(figure.title)}</h3>{figure.svg}{caption}</figure>'

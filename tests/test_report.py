@@ -8,7 +8,7 @@ is visibly marked, and that nothing in the page reaches outside it.
 
 from __future__ import annotations
 
-from trading_report.report import Cell, Report, Section, Table, render_html
+from trading_report.report import Cell, Figure, Report, Section, Table, render_html
 
 
 def minimal(**overrides: object) -> Report:
@@ -315,3 +315,28 @@ def test_a_flag_survives_a_table_with_no_rows() -> None:
     table = Table(headers=["s"], rows=[], empty_note="none", flag=Dot("2 days old", "warn"))
 
     assert "2 days old" in render_html(minimal(sections=[Section(title="x", tables=[table])]))
+
+
+class TestAWideFigure:
+    """A section's main chart must not land in a quarter-width grid cell."""
+
+    def test_a_wide_figure_is_marked_for_the_full_grid(self) -> None:
+        section = Section(
+            title="Market breadth",
+            figures=[Figure(title="Share above", svg="<svg/>", wide=True)],
+        )
+        html = render_html(minimal(sections=[section]))
+
+        assert '<figure class="fig fig--wide">' in html
+
+    def test_an_ordinary_figure_is_not(self) -> None:
+        section = Section(
+            title="Sector breadth",
+            figures=[Figure(title="One sector", svg="<svg/>")],
+        )
+        html = render_html(minimal(sections=[section]))
+
+        # "fig--wide" appears in the embedded stylesheet regardless, so the
+        # element is what gets asserted on.
+        assert '<figure class="fig">' in html
+        assert '<figure class="fig fig--wide">' not in html

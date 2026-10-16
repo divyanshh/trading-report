@@ -515,15 +515,21 @@ def render_mini(
     return "".join(parts)
 
 
-BREADTH_WIDTH: Final[int] = 980
-BREADTH_HEIGHT: Final[int] = 300
-"""Deliberately larger than the row charts.
+BREADTH_WIDTH: Final[int] = 1600
+BREADTH_HEIGHT: Final[int] = 340
+"""Sized to the width it is actually rendered at, which is the whole trick.
 
-This is the only chart on the page that answers "is the market taking part",
-and it sits at the top where the gate's verdict is read. At the old 640x150 the
-three lines crowded into a band a few pixels deep and the crossing -- the whole
-point -- was a judgement call. The page is a desktop report; the width is
-affordable.
+An SVG with a viewBox and no width scales by ``container / viewBox``, so the
+numbers here are not "how big the chart is" -- they decide how big its **text
+and strokes look**. A 980-wide box in a 620px card shrank every label to 63% of
+its stated size; a 300-wide box in a 600px card doubled them. The two breadth
+charts on the page were drawn from the same function and looked nothing alike.
+
+So the rule is: make the viewBox match the width the chart will occupy, and
+every absolute size in here then renders at roughly face value wherever it is
+used. This one spans the full grid (``Figure.wide``), so it is sized for that;
+the sector multiples pass a width matching one grid cell. Same font sizes, same
+stroke weights, same apparent chart.
 """
 
 BREADTH_ABOVE_COLOUR: Final[str] = "#2563eb"

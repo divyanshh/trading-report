@@ -472,7 +472,22 @@ class TestTheBreadthChartsTwoSides:
     def test_it_is_drawn_large_enough_to_separate_the_lines(self) -> None:
         svg = charts.render_breadth(self._points())
 
-        assert 'viewBox="0 0 980 300"' in svg
+        assert f'viewBox="0 0 {charts.BREADTH_WIDTH} {charts.BREADTH_HEIGHT}"' in svg
+        assert charts.BREADTH_WIDTH >= 1200, "sized for a figure spanning the grid"
+
+    def test_a_narrower_chart_keeps_the_same_text_size(self) -> None:
+        """The bug this sizing exists to stop.
+
+        An SVG with a viewBox and no width scales by container/viewBox, so the
+        same font-size renders at wildly different sizes in a wide box and a
+        narrow one. Both charts must therefore state their text in the same
+        units — what differs is the viewBox, not the type.
+        """
+        wide = charts.render_breadth(self._points())
+        narrow = charts.render_breadth(self._points(), width=420, height=200)
+
+        assert 'font-size="11"' in wide and 'font-size="11"' in narrow
+        assert 'viewBox="0 0 420 200"' in narrow
 
     def test_the_legend_names_all_three(self) -> None:
         svg = charts.render_breadth(self._points(), [Decimal("33")] * 8)
