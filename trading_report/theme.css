@@ -64,14 +64,17 @@ h2{font-size:19px;font-weight:700;letter-spacing:-.015em;margin:34px 0 6px;paddi
 .lead{color:var(--muted);font-size:13px;margin:6px 0 4px;max-width:110ch;line-height:1.6}
 .sub{color:var(--ink-2);font-size:12.5px;margin:16px 0 8px;font-weight:600}
 /* folded sections: reference material, open on demand */
-details.folded{scroll-margin-top:64px}
-details.folded>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px}
+/* The heading's margin moves onto the <details> so the summary is a single
+   flex line: left on the h2 it pushes the row down and the count pill floats
+   above the title it belongs to. */
+details.folded{scroll-margin-top:64px;margin:34px 0 6px}
+details.folded>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px}
 details.folded>summary::-webkit-details-marker{display:none}
-details.folded>summary h2{margin:34px 0 6px}
+details.folded>summary h2{margin:0}
 details.folded>summary h2::after{content:"\25B8";display:inline-block;margin-left:10px;font-size:14px;
   color:var(--muted);transition:transform .15s ease;transform-origin:center}
 details.folded[open]>summary h2::after{transform:rotate(90deg)}
-.folded-hint{align-self:center;color:var(--muted);font-size:11px;text-transform:uppercase;
+.folded-hint{color:var(--muted);font-size:11px;text-transform:uppercase;
   letter-spacing:.05em;border:1px solid var(--line);border-radius:999px;padding:3px 10px;white-space:nowrap}
 details.folded>summary:hover h2{color:var(--blue-ink)}
 details.folded>summary:hover h2::after{color:var(--blue)}
