@@ -232,6 +232,19 @@ class Section:
     tables: list[Table] = field(default_factory=list)
     lead: str = ""
     notes: list[str] = field(default_factory=list)
+    collapsed: bool = False
+    """Render folded, with only the heading showing until it is clicked.
+
+    For a section that is reference rather than reading: long, consulted when a
+    specific question comes up, and otherwise standing between the reader and
+    the next thing they came for. Exchange filings and the gate's refusals are
+    both that -- dozens of rows that matter on the day one of them matters.
+
+    It is a fold and not a cut. Everything is in the page, in the archive and
+    in the browser's find-on-page; the reader chooses when to look rather than
+    scrolling past it every morning.
+    """
+
     figures: list[Figure] = field(default_factory=list)
     """Full-size charts under the tables.
 
@@ -407,18 +420,50 @@ def _slug(title: str) -> str:
 
 
 def _section(section: Section) -> str:
-    parts = [f'<h2 id="{_slug(section.title)}">{escape(section.title)}</h2>']
+    slug = _slug(section.title)
+    # **The anchor goes on the outermost element either way.** The table of
+    # contents links to this slug, and on a folded section an id buried inside
+    # a closed <details> is an anchor the browser may decline to scroll to --
+    # a contents entry that silently does nothing is worse than no entry.
+    heading = f'<h2 class="folded-head">{escape(section.title)}</h2>'
+    body = []
     if section.lead:
-        parts.append(f'<p class="lead">{escape(section.lead)}</p>')
-    parts.extend(_table(table) for table in section.tables)
+        body.append(f'<p class="lead">{escape(section.lead)}</p>')
+    body.extend(_table(table) for table in section.tables)
     if section.figures:
-        parts.append(
+        body.append(
             '<div class="figures">'
             + "".join(_figure(figure) for figure in section.figures)
             + "</div>"
         )
-    parts.extend(f'<p class="note">{escape(note)}</p>' for note in section.notes)
-    return "".join(parts)
+    body.extend(f'<p class="note">{escape(note)}</p>' for note in section.notes)
+
+    if not section.collapsed:
+        return f'<h2 id="{slug}">{escape(section.title)}</h2>' + "".join(body)
+    return (
+        f'<details class="folded" id="{slug}"><summary>{heading}'
+        f'<span class="folded-hint">{_fold_hint(section)}</span></summary>'
+        + "".join(body)
+        + "</details>"
+    )
+
+
+def _fold_hint(section: Section) -> str:
+    """What is behind the fold, so it can be skipped without opening it.
+
+    A bare disclosure triangle asks the reader to open the section to find out
+    whether it was worth opening. A count answers that from the closed state,
+    and "nothing filed today" is the most useful thing this section can say on
+    most days.
+    """
+    rows = sum(len(table.rows) for table in section.tables)
+    if rows:
+        return f"{rows} row{'s' if rows != 1 else ''}"
+    # A section can carry charts or notes and no rows at all, and calling that
+    # "nothing" would tell the reader not to open something that has content.
+    if section.figures or section.notes:
+        return "open"
+    return "nothing to show"
 
 
 def _figure(figure: Figure) -> str:

@@ -8,7 +8,17 @@ is visibly marked, and that nothing in the page reaches outside it.
 
 from __future__ import annotations
 
-from trading_report.report import Cell, Figure, Report, Section, Table, render_html
+from dataclasses import replace
+
+from trading_report.report import (
+    Cell,
+    Figure,
+    Report,
+    Section,
+    Table,
+    _section,
+    render_html,
+)
 
 
 def minimal(**overrides: object) -> Report:
@@ -340,3 +350,73 @@ class TestAWideFigure:
         # element is what gets asserted on.
         assert '<figure class="fig">' in html
         assert '<figure class="fig fig--wide">' not in html
+
+
+class TestFoldedSections:
+    """A section rendered closed, for reference material the reader consults
+    rather than reads. The fold must not cost anything the open version had."""
+
+    def _section(self, **kwargs):
+        return Section(
+            title="Exchange filings",
+            lead="What the companies told the exchange.",
+            tables=[
+                Table(
+                    headers=["symbol", "what it says"],
+                    rows=[[Cell("SBC"), Cell("board meeting")]],
+                )
+            ],
+            **kwargs,
+        )
+
+    def test_a_section_is_open_by_default(self) -> None:
+        """Every existing caller passes no flag and must render exactly as it
+        did, heading and all, with no disclosure widget appearing."""
+        html = _section(self._section())
+
+        assert "<details" not in html
+        assert '<h2 id="exchange-filings">Exchange filings</h2>' in html
+
+    def test_a_collapsed_section_folds(self) -> None:
+        html = _section(self._section(collapsed=True))
+
+        assert '<details class="folded"' in html
+        assert "<summary>" in html
+
+    def test_the_anchor_stays_on_the_outermost_element(self) -> None:
+        """The table of contents links to this slug. An id buried inside a
+        closed <details> is an anchor the browser may decline to scroll to, and
+        a contents entry that silently does nothing is worse than none."""
+        html = _section(self._section(collapsed=True))
+
+        assert '<details class="folded" id="exchange-filings">' in html
+
+    def test_the_content_is_folded_and_not_dropped(self) -> None:
+        """A fold, not a cut: it stays in the page, the archive and find-on-page."""
+        html = _section(self._section(collapsed=True))
+
+        assert "board meeting" in html
+        assert "What the companies told the exchange." in html
+
+    def test_the_closed_state_says_how_much_is_behind_it(self) -> None:
+        """Otherwise the reader must open the section to learn whether it was
+        worth opening."""
+        html = _section(self._section(collapsed=True))
+
+        assert "1 row" in html
+
+    def test_an_empty_folded_section_says_so(self) -> None:
+        empty = Section(title="Exchange filings", tables=[Table(headers=["x"], rows=[])])
+
+        assert "nothing to show" in _section(replace(empty, collapsed=True))
+
+    def test_a_folded_section_of_charts_is_not_called_empty(self) -> None:
+        """Rows are not the only content, and telling a reader there is nothing
+        behind a fold that holds a chart hides it for good."""
+        charted = Section(
+            title="What the gate refused",
+            collapsed=True,
+            figures=[Figure(title="refusals", svg="<svg></svg>")],
+        )
+
+        assert "nothing to show" not in _section(charted)
