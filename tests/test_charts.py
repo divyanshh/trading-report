@@ -467,7 +467,11 @@ class TestTheBreadthChartsTwoSides:
         svg = charts.render_breadth(self._points(), [Decimal("33")] * 8)
 
         assert "prior 5-session mean (the gate)" in svg
-        assert charts.BREADTH_MEAN_COLOUR == "#15803d"
+        # The point is that it is not the axis grey, not that it is one
+        # particular green. Pinning the literal here is what kept the breadth
+        # chart on the light theme's 600-series after the page went dark.
+        assert charts.BREADTH_MEAN_COLOUR != charts.BREADTH_HALF_COLOUR
+        assert "--green" in charts.BREADTH_MEAN_COLOUR
 
     def test_it_is_drawn_large_enough_to_separate_the_lines(self) -> None:
         svg = charts.render_breadth(self._points())

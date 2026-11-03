@@ -78,3 +78,26 @@ def test_the_canvas_fade_matches_the_canvas() -> None:
     assert tuple(int(g) for g in fade.groups()) == expected, (
         f"--canvas-fade {fade.groups()} does not match --canvas #{canvas}"
     )
+
+
+CHARTS = Path(__file__).resolve().parents[1] / "trading_report/charts.py"
+BARE_COLOUR = re.compile(r'^\s*\w+(?::\s*Final\[str\])?\s*=\s*"(#[0-9a-fA-F]{3,8})"', re.M)
+
+
+def test_chart_colours_reference_the_palette_too() -> None:
+    """The same rule as the stylesheet, enforced in the other place colour is
+    written down.
+
+    An SVG is inline in the page, so ``var(--blue,#2563eb)`` resolves against
+    the same palette every rule below :root uses -- and a bare literal does
+    not. Three of these had leaked into the breadth chart and rendered
+    Tailwind's 600-series on a dark canvas, where the theme's own note says
+    the darker shades "stop reading as colour and start reading as grey". The
+    fallback after the comma is the light theme's value and is what a chart
+    drawn outside the report still uses.
+    """
+    strays = BARE_COLOUR.findall(CHARTS.read_text(encoding="utf-8"))
+    assert not strays, (
+        "chart colour constants without a palette reference — these ignore the "
+        f"theme and render for whichever one they were written against: {sorted(set(strays))}"
+    )

@@ -532,10 +532,10 @@ the sector multiples pass a width matching one grid cell. Same font sizes, same
 stroke weights, same apparent chart.
 """
 
-BREADTH_ABOVE_COLOUR: Final[str] = "#2563eb"
+BREADTH_ABOVE_COLOUR: Final[str] = "var(--blue,#2563eb)"
 """Blue: the share of the universe above its own 20-day average."""
 
-BREADTH_BELOW_COLOUR: Final[str] = "#dc2626"
+BREADTH_BELOW_COLOUR: Final[str] = "var(--red,#dc2626)"
 """Red: the share below it.
 
 **It is the mirror of the blue line and that is the point.** It carries no
@@ -544,7 +544,7 @@ a crossing rather than as a number the reader has to compare with 50 in their
 head. Where red is above blue, most of the market is below its own average.
 """
 
-BREADTH_MEAN_COLOUR: Final[str] = "#15803d"
+BREADTH_MEAN_COLOUR: Final[str] = "var(--green,#15803d)"
 """Dark green: the prior five-session mean the gate judges today against.
 
 Darkened from the old grey on purpose. This is not chrome -- it is the
