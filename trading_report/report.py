@@ -29,7 +29,7 @@ read cannot be printed reliably. The stylesheet is the page's own — see
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from html import escape
 from pathlib import Path
 from typing import Final
@@ -115,6 +115,20 @@ class Table:
     explanation reads as a broken report; every section says why it is
     empty, because 'no setups' and 'the source did not answer' look
     identical otherwise."""
+
+    collapsed: bool = False
+    """Render the rows folded, behind the caption, inside an open section.
+
+    Different from :attr:`Section.collapsed`, which folds a whole section away.
+    This is for a section whose chart is the thing to read and whose table is
+    the backing detail -- breadth and institutional flows both. The heading,
+    the lead and the figures stay on the page; only the rows fold, under the
+    caption that already describes them.
+
+    The caption becomes the control, so a table folded this way needs one. With
+    none, the fold would be a bare triangle above nothing, and a reader would
+    have to open it to discover what they had opened.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -382,6 +396,13 @@ def _table(table: Table) -> str:
     caption = f'<p class="sub">{escape(table.caption)}</p>' if table.caption else ""
     if table.flag is not None:
         caption = f'<div class="dots">{_dot(table.flag)}</div>' + caption
+    if table.collapsed and table.caption and (table.rows or table.cards):
+        # An empty table is not folded. What it shows is the empty note, which
+        # is the outage message -- "`record_market_flows` has not run" -- and
+        # putting that behind a triangle hides the one thing the reader needs
+        # on the morning a job failed, behind a control that looks like it is
+        # concealing rows that do not exist.
+        return _folded_table(table)
     if table.cards:
         return f'{caption}<div class="cards">' + "".join(_card(c) for c in table.cards) + "</div>"
     if not table.rows:
@@ -410,6 +431,25 @@ def _table(table: Table) -> str:
     return (
         f'{caption}<div class="scroll"><table><thead><tr>{head}</tr></thead>'
         f"<tbody>{body}</tbody></table></div>"
+    )
+
+
+def _folded_table(table: Table) -> str:
+    """The rows behind their own caption, with the chart above left visible.
+
+    Rendered by folding the body of an ordinary table rather than by building a
+    second one, so a table gains or loses the fold without gaining a different
+    renderer -- the alignment rules, the cards case and the empty note all
+    stay in one place and cannot drift apart.
+    """
+    count = len(table.cards) or len(table.rows)
+    hint = f"{count} row{'s' if count != 1 else ''}" if count else "nothing to show"
+    inner = _table(replace(table, collapsed=False, caption=""))
+    flag = f'<div class="dots">{_dot(table.flag)}</div>' if table.flag is not None else ""
+    return (
+        f'{flag}<details class="folded-table"><summary>'
+        f'<span class="sub">{escape(table.caption)}</span>'
+        f'<span class="folded-hint">{hint}</span></summary>{inner}</details>'
     )
 
 

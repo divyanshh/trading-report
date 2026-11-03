@@ -84,6 +84,19 @@ details.folded>summary:focus-visible{outline:2px solid var(--blue);outline-offse
    them. */
 @media print{details.folded>summary h2::after{display:none}
   details.folded:not([open])>*{display:block}}
+/* a folded table inside an open section: the caption is the control */
+details.folded-table{margin:16px 0 8px}
+details.folded-table>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px}
+details.folded-table>summary::-webkit-details-marker{display:none}
+details.folded-table>summary .sub{margin:0}
+details.folded-table>summary .sub::after{content:"\25B8";display:inline-block;margin-left:8px;
+  font-size:12px;color:var(--muted);transition:transform .15s ease}
+details.folded-table[open]>summary .sub::after{transform:rotate(90deg)}
+details.folded-table>summary:hover .sub{color:var(--blue-ink)}
+details.folded-table>summary:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:6px}
+details.folded-table>.scroll,details.folded-table>.cards{margin-top:8px}
+@media print{details.folded-table>summary .sub::after{display:none}
+  details.folded-table:not([open])>*{display:block}}
 /* tables */
 .scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin:0 0 8px}
 table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}

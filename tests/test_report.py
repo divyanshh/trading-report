@@ -17,6 +17,7 @@ from trading_report.report import (
     Section,
     Table,
     _section,
+    _table,
     render_html,
 )
 
@@ -420,3 +421,79 @@ class TestFoldedSections:
         )
 
         assert "nothing to show" not in _section(charted)
+
+
+class TestFoldedTables:
+    """Rows folded behind their caption inside a section that stays open.
+
+    The case is a section whose chart is the thing to read and whose table is
+    the backing detail. Folding the whole section would take the chart with it.
+    """
+
+    def _table(self, **kwargs) -> Table:
+        return Table(
+            headers=["day", "FII net"],
+            rows=[[Cell("2026-11-03", left=True), Cell("+6,837")]],
+            caption="30 session(s)",
+            **kwargs,
+        )
+
+    def test_a_table_is_open_by_default(self) -> None:
+        html = _table(self._table())
+
+        assert "<details" not in html
+        assert '<p class="sub">30 session(s)</p>' in html
+
+    def test_a_collapsed_table_folds_under_its_caption(self) -> None:
+        html = _table(self._table(collapsed=True))
+
+        assert '<details class="folded-table">' in html
+        assert "30 session(s)" in html
+
+    def test_the_rows_are_folded_and_not_dropped(self) -> None:
+        html = _table(self._table(collapsed=True))
+
+        assert "+6,837" in html
+
+    def test_the_caption_is_not_printed_twice(self) -> None:
+        """It becomes the control. Rendering it again above the fold would put
+        the same sentence on the page twice, once clickable and once not."""
+        html = _table(self._table(collapsed=True))
+
+        assert html.count("30 session(s)") == 1
+
+    def test_the_closed_state_counts_the_rows(self) -> None:
+        assert "1 row" in _table(self._table(collapsed=True))
+
+    def test_a_table_with_no_caption_does_not_fold(self) -> None:
+        """The caption is the control. Without one the fold is a bare triangle
+        above nothing, and the reader must open it to find out what it was."""
+        bare = Table(headers=["day"], rows=[[Cell("2026-11-03")]], collapsed=True)
+
+        assert "<details" not in _table(bare)
+
+    def test_an_empty_collapsed_table_does_not_fold_at_all(self) -> None:
+        """The empty note is the outage message. Folding it behind a triangle
+        hides the one thing the reader needs on the morning a job failed, under
+        a control that looks like it is concealing rows which do not exist."""
+        empty = Table(
+            headers=["day"],
+            rows=[],
+            caption="30 session(s)",
+            empty_note="`record_market_flows` has not run.",
+            collapsed=True,
+        )
+        html = _table(empty)
+
+        assert "<details" not in html
+        assert "`record_market_flows` has not run." in html
+        assert '<p class="sub">30 session(s)</p>' in html
+
+    def test_folding_does_not_change_how_the_rows_render(self) -> None:
+        """Same renderer, so header alignment and cell tone cannot drift
+        between a folded table and an open one."""
+        plain = _table(self._table())
+        folded = _table(self._table(collapsed=True))
+
+        assert '<th class="l">day</th>' in plain
+        assert '<th class="l">day</th>' in folded
