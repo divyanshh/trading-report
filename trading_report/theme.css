@@ -24,6 +24,14 @@
   --amber:#fbbf24;--amber-50:#291d09;--amber-100:#3a2a0c;
   /* Borders for the tinted chips, which used pale literals on the light theme. */
   --green-line:#1f5133;--red-line:#6b2b2b;--amber-line:#5c4312;
+  /* Chart series. Categorical slots, deliberately separate from the semantic
+     accents: a chart that paints its series with --blue and --amber inherits
+     whatever those two mean in the current theme, and the public book's own
+     theme maps --blue onto its gold -- which put two near-identical golds on a
+     two-series chart (dE 4.4, against a floor of 15). A series colour's only
+     job is to be told apart from the next one, so it gets its own token.
+     Validated on this canvas: dE 33.0 normal, 29.9 protan. */
+  --series-1:#60a5fa;--series-2:#fbbf24;--series-neutral:#b9c4d6;
   --head:#18233a;          /* table heads, one step off the card */
   --canvas-fade:rgba(11,18,32,0);   /* must match --canvas, alpha 0 */
   --pass:var(--green);--pass-bg:var(--green-100);--fail:var(--red);--fail-bg:var(--red-100);--warn:var(--amber);--warn-bg:var(--amber-100);
